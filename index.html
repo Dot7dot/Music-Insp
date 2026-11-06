@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Music Insp</title>
+  <meta name="description" content="音乐创作者的灵感碎片收集簿：建立歌曲资料夹、录音、上传档案、写备注，一键汇出 ZIP。资料只储存在你的浏览器里。">
+  <meta name="theme-color" content="#16131c" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#faf7f2" media="(prefers-color-scheme: light)">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23e8734a'/%3E%3Cpath d='M26 44a6 6 0 1 1-4-5.66V18l20-4v24a6 6 0 1 1-4-5.66V22l-12 2.4z' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#/">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M9 17.5a2.5 2.5 0 1 1-1.5-2.29V6l9-1.8v10.3a2.5 2.5 0 1 1-1.5-2.29V7.9L9 9.1z"/></svg>
+      </span>
+      <span class="brand-text">
+        <strong>Music Insp</strong>
+        <small>灵感碎片收集簿</small>
+      </span>
+    </a>
+    <span id="storage-info" class="storage-info" title="浏览器储存空间使用量"></span>
+  </header>
+
+  <main id="app" tabindex="-1"></main>
+
+  <footer class="footer">
+    所有资料只储存在这个浏览器里（IndexedDB），不会上传到任何伺服器。清除浏览器资料会一并删除，请定期汇出 ZIP 备份。
+  </footer>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="vendor/jszip.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
