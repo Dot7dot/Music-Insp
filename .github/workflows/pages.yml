@@ -1,7 +1,7 @@
 name: Deploy to GitHub Pages
 
-# 每次推送到 main，就把网页档案发布到 gh-pages 分支，
-# GitHub Pages 会从 gh-pages 分支自动更新网站。
+# 每次推送到 main，就把網頁檔案發布到 gh-pages 分支，
+# GitHub Pages 會從 gh-pages 分支自動更新網站。
 on:
   push:
     branches: [main]
