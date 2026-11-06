@@ -61,6 +61,8 @@
     trash: '<svg viewBox="0 0 24 24"><path d="M6 19a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7H6zM19 4h-3.5l-1-1h-5l-1 1H5v2h14z"/></svg>',
     zip: '<svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2zm-2 6h-2v2h2v2h-2v2h-2v-2h2v-2h-2v-2h2v-2h-2V8h2v2h2z"/></svg>',
     stop: '<svg viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+    text: '<svg viewBox="0 0 24 24"><path d="M4 5h16v2H4zm0 4h16v2H4zm0 4h10v2H4zm0 4h7v2H4zm14.3-3.7l1.4 1.4-4.6 4.6H13.7v-1.4z"/></svg>',
+    chevron: '<svg viewBox="0 0 24 24"><path d="M7.4 8.6L12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg>',
     plus: '<svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg>',
   };
 
@@ -201,13 +203,19 @@
 
   const stripExt = (n) => n.replace(/\.[a-z0-9]{1,8}$/i, '');
 
-  const KIND_LABEL = { audio: '音訊', image: '圖片', video: '影片', file: '檔案' };
+  const KIND_LABEL = { text: '文字', audio: '音訊', image: '圖片', video: '影片', file: '檔案' };
+
+  // 文字碎片匯出 / 下載用：UTF-8 BOM + CRLF，Windows 記事本也不會亂碼
+  const textBlob = (str) => new Blob(['\ufeff' + String(str || '').replace(/\r?\n/g, '\r\n')], { type: 'text/plain;charset=utf-8' });
+  const charCount = (str) => [...String(str || '').replace(/\s/g, '')].length;
+  const byteLen = (str) => new Blob([str || '']).size;
 
   // ---------------------------------------------------------------- router
   let cleanup = [];
   function runCleanup() {
-    cleanup.forEach((fn) => { try { fn(); } catch { /* ignore */ } });
+    const jobs = cleanup.map((fn) => { try { return fn(); } catch { return null; } });
     cleanup = [];
+    return Promise.all(jobs).catch(() => {});
   }
 
   async function route() {
@@ -215,7 +223,7 @@
       // 離開頁面前先把錄音存起來
       await recorder.stop();
     }
-    runCleanup();
+    await runCleanup();
     const m = /^#\/song\/([^/]+)/.exec(location.hash);
     try {
       if (m) await renderFolder(decodeURIComponent(m[1]));
@@ -253,7 +261,7 @@
     app.innerHTML = `
       <section class="hero">
         <h1>我的歌曲</h1>
-        <p>每首歌一個資料夾，把錄音、圖片、檔案這些靈感碎片先丟進來，之後一鍵匯出 ZIP 帶進編曲軟體。</p>
+        <p>每首歌一個資料夾，把錄音、文字、圖片、檔案這些靈感碎片先丟進來，之後一鍵匯出 ZIP 帶進編曲軟體。</p>
       </section>
       <form class="new-song" id="new-song" autocomplete="off">
         <label class="sr-only" for="song-name">歌曲名稱</label>
@@ -289,13 +297,24 @@
         <div class="empty" style="margin-top:16px"><strong>找不到這個資料夾</strong>它可能已經被刪除了。</div>`;
       return;
     }
+    // 舊版的「資料夾備註」搬進靈感碎片，變成一則文字碎片
+    if (folder.notes && folder.notes.trim()) {
+      const text = folder.notes;
+      await DB.putFragment({
+        id: uid(), folderId: id, name: '備註', kind: 'text', mime: 'text/plain',
+        text, size: byteLen(text), createdAt: folder.createdAt || Date.now(), updatedAt: Date.now(),
+      });
+      folder.notes = '';
+      await DB.putFolder(folder);
+    }
     const fragments = await DB.fragments(id);
     current = { folder, fragments };
+    expanded.clear();
     document.title = `${folder.name} · Music Insp`;
 
     const wavPref = readPref('wav', '1') === '1';
 
-    app.innerHTML = `
+    app.innerHTML = `<div class="folder-view">
       <a class="back" href="#/">← 所有歌曲</a>
       <div class="folder-head">
         <div class="title-wrap">
@@ -311,27 +330,19 @@
         </div>
       </div>
 
-      <div class="layout">
-        <section class="panel">
-          <h2>靈感碎片 <span class="count" id="frag-count"></span></h2>
-          <div class="add-bar">
-            <button class="btn btn-rec" id="rec-btn">${ICONS.mic}錄音</button>
-            <button class="btn" id="upload-btn">${ICONS.upload}上傳檔案</button>
-            <input type="file" id="file-input" multiple hidden>
-          </div>
-          <div id="recorder-slot"></div>
-          <div class="dropzone" id="dropzone">也可以把檔案直接拖曳到這裡（錄音、圖片、PDF、任何檔案都行）</div>
-          <ul class="frag-list" id="frag-list"></ul>
-        </section>
-
-        <section class="panel sticky">
-          <h2>備註 <span class="save-state" id="save-state"></span></h2>
-          <label class="sr-only" for="notes">備註</label>
-          <textarea id="notes" class="notes" placeholder="歌詞、和弦進行、編曲想法、BPM、調性……想到什麼就記下來。">${esc(folder.notes || '')}</textarea>
-          <p class="notes-hint">自動儲存。匯出 ZIP 時會一起打包成「備註.txt」。</p>
-        </section>
-      </div>
-    `;
+      <section class="panel">
+        <h2>靈感碎片 <span class="count" id="frag-count"></span></h2>
+        <div class="add-bar">
+          <button class="btn btn-rec" id="rec-btn">${ICONS.mic}錄音</button>
+          <button class="btn" id="text-btn">${ICONS.text}寫文字</button>
+          <button class="btn" id="upload-btn">${ICONS.upload}上傳檔案</button>
+          <input type="file" id="file-input" multiple hidden>
+        </div>
+        <div id="recorder-slot"></div>
+        <div class="dropzone" id="dropzone">也可以把檔案直接拖曳到這裡（錄音、圖片、PDF、任何檔案都行）</div>
+        <ul class="frag-list" id="frag-list"></ul>
+      </section>
+    </div>`;
 
     renderFragments();
     bindFolderEvents();
@@ -348,6 +359,8 @@
     urls.clear();
   }
 
+  const expanded = new Set(); // 目前展開中的文字碎片 id
+
   function renderFragments() {
     revokeAll();
     const list = $('#frag-list');
@@ -355,43 +368,186 @@
     $('#frag-count').textContent = fragments.length ? `${fragments.length} 個` : '';
 
     if (!fragments.length) {
-      list.innerHTML = `<li class="empty">還沒有碎片。按「錄音」馬上錄一段，或上傳檔案。</li>`;
+      list.innerHTML = `<li class="empty">還沒有碎片。按「錄音」馬上錄一段、「寫文字」記下歌詞或旋律想法，或上傳檔案。</li>`;
       return;
     }
+    list.innerHTML = fragments.map(fragHTML).join('');
+    afterRender(list);
+  }
 
-    list.innerHTML = fragments.map((fr) => {
-      const url = objURL(fr.blob);
-      const meta = [
-        KIND_LABEL[fr.kind] || '檔案',
-        extOf(fr).toUpperCase(),
-        fmtSize(fr.size),
-        fr.duration ? fmtDur(fr.duration) : '',
-        fmtDate(fr.createdAt),
-      ].filter(Boolean).join(' · ');
+  function rerenderFrag(id) {
+    const fr = current.fragments.find((x) => x.id === id);
+    const li = $(`.frag[data-id="${CSS.escape(id)}"]`);
+    if (!fr || !li) return null;
+    li.outerHTML = fragHTML(fr);
+    const fresh = $(`.frag[data-id="${CSS.escape(id)}"]`);
+    afterRender(fresh);
+    return fresh;
+  }
 
-      let icon = ICONS[fr.kind] || ICONS.file;
-      let preview = '';
-      if (fr.kind === 'audio') {
-        preview = `<audio controls preload="metadata" src="${url}"></audio>`;
-      } else if (fr.kind === 'video') {
-        preview = `<video controls preload="metadata" playsinline src="${url}"></video>`;
-      } else if (fr.kind === 'image') {
-        icon = `<img src="${url}" alt="">`;
-        preview = `<img src="${url}" alt="${esc(fr.name)}" data-zoom>`;
-      }
+  // 依內容調整：文字預覽是否被截斷、展開時輸入框自動長高
+  function afterRender(root) {
+    root.querySelectorAll('.peek-text').forEach((el) => {
+      el.closest('.frag').classList.toggle('clamped', el.scrollHeight > el.clientHeight + 2);
+    });
+    root.querySelectorAll('.text-body').forEach(autosize);
+  }
 
+  function autosize(ta) {
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 2 + 'px';
+  }
+
+  function textMeta(fr) {
+    const n = charCount(fr.text);
+    const lines = String(fr.text || '').split('\n').filter((l) => l.trim()).length;
+    return [
+      '文字',
+      n ? `${n} 字` : '空白',
+      lines > 1 ? `${lines} 行` : '',
+      `更新於 ${fmtDate(fr.updatedAt || fr.createdAt)}`,
+    ].filter(Boolean).join(' · ');
+  }
+
+  function fragHTML(fr) {
+    const nameInput = `<input class="frag-name" value="${esc(fr.name)}" maxlength="120" aria-label="碎片名稱">`;
+    const delBtn = `<button class="btn btn-ghost btn-icon btn-danger" data-act="delete" title="刪除" aria-label="刪除">${ICONS.trash}</button>`;
+
+    if (fr.kind === 'text') {
+      const open = expanded.has(fr.id);
+      const body = open
+        ? `<textarea class="text-body" placeholder="寫下歌詞、旋律、和弦進行、編曲想法……" aria-label="${esc(fr.name)} 內容">${esc(fr.text || '')}</textarea>
+           <div class="text-foot">
+             <span class="save-state" data-save></span>
+             <button class="btn btn-ghost btn-sm" data-act="collapse">${ICONS.chevron}收合</button>
+           </div>`
+        : `<div class="text-peek${fr.text ? '' : ' is-empty'}" role="button" tabindex="0" data-act="expand" aria-label="展開「${esc(fr.name)}」"><div class="peek-text">${fr.text ? esc(fr.text) : '還沒有內容，點一下開始寫'}</div></div>
+           <button class="peek-more" data-act="expand" tabindex="-1">展開全文 ${ICONS.chevron}</button>`;
       return `
-        <li class="frag" data-id="${esc(fr.id)}">
-          <span class="frag-icon">${icon}</span>
-          <input class="frag-name" value="${esc(fr.name)}" maxlength="120" aria-label="碎片名稱">
+        <li class="frag frag-text${open ? ' open' : ''}" data-id="${esc(fr.id)}">
+          <span class="frag-icon">${ICONS.text}</span>
+          ${nameInput}
           <div class="frag-actions">
-            <a class="btn btn-ghost btn-icon" href="${url}" download="${esc(fileNameFor(fr))}" title="下載" aria-label="下載">${ICONS.download}</a>
-            <button class="btn btn-ghost btn-icon btn-danger" data-act="delete" title="刪除" aria-label="刪除">${ICONS.trash}</button>
+            <button class="btn btn-ghost btn-icon toggle" data-act="${open ? 'collapse' : 'expand'}" title="${open ? '收合' : '展開'}" aria-label="${open ? '收合' : '展開'}" aria-expanded="${open}">${ICONS.chevron}</button>
+            <button class="btn btn-ghost btn-icon" data-act="download-text" title="下載 .txt" aria-label="下載文字檔">${ICONS.download}</button>
+            ${delBtn}
           </div>
-          <div class="frag-meta">${esc(meta)}</div>
-          ${preview ? `<div class="frag-preview">${preview}</div>` : ''}
+          <div class="frag-meta" data-meta>${esc(textMeta(fr))}</div>
+          <div class="frag-preview">${body}</div>
         </li>`;
-    }).join('');
+    }
+
+    const url = objURL(fr.blob);
+    const meta = [
+      KIND_LABEL[fr.kind] || '檔案',
+      extOf(fr).toUpperCase(),
+      fmtSize(fr.size),
+      fr.duration ? fmtDur(fr.duration) : '',
+      fmtDate(fr.createdAt),
+    ].filter(Boolean).join(' · ');
+
+    let icon = ICONS[fr.kind] || ICONS.file;
+    let preview = '';
+    if (fr.kind === 'audio') {
+      preview = `<audio controls preload="metadata" src="${url}"></audio>`;
+    } else if (fr.kind === 'video') {
+      preview = `<video controls preload="metadata" playsinline src="${url}"></video>`;
+    } else if (fr.kind === 'image') {
+      icon = `<img src="${url}" alt="">`;
+      preview = `<img src="${url}" alt="${esc(fr.name)}" data-zoom>`;
+    }
+
+    return `
+      <li class="frag" data-id="${esc(fr.id)}">
+        <span class="frag-icon">${icon}</span>
+        ${nameInput}
+        <div class="frag-actions">
+          <a class="btn btn-ghost btn-icon" href="${url}" download="${esc(fileNameFor(fr))}" title="下載" aria-label="下載">${ICONS.download}</a>
+          ${delBtn}
+        </div>
+        <div class="frag-meta">${esc(meta)}</div>
+        ${preview ? `<div class="frag-preview">${preview}</div>` : ''}
+      </li>`;
+  }
+
+  // ---- 文字碎片：自動儲存
+  const textTimers = new Map();
+  function scheduleTextSave(fr, li) {
+    clearTimeout(textTimers.get(fr.id));
+    const state = li?.querySelector('[data-save]');
+    if (state) state.textContent = '編輯中…';
+    textTimers.set(fr.id, setTimeout(() => saveText(fr), 600));
+  }
+  async function saveText(fr) {
+    clearTimeout(textTimers.get(fr.id));
+    if (!textTimers.has(fr.id)) return;
+    textTimers.delete(fr.id);
+    fr.size = byteLen(fr.text);
+    await DB.putFragment(fr);
+    await touchFolder(fr.folderId);
+    const li = $(`.frag[data-id="${CSS.escape(fr.id)}"]`);
+    const state = li?.querySelector('[data-save]');
+    if (state) state.textContent = '已儲存';
+    const meta = li?.querySelector('[data-meta]');
+    if (meta) meta.textContent = textMeta(fr);
+  }
+  function flushTextSaves() {
+    if (!current) return Promise.resolve();
+    const pending = [...textTimers.keys()]
+      .map((id) => current.fragments.find((x) => x.id === id))
+      .filter(Boolean);
+    return Promise.all(pending.map(saveText));
+  }
+
+  function expandText(id, { focus = 'end' } = {}) {
+    expanded.add(id);
+    const li = rerenderFrag(id);
+    if (!li) return;
+    if (focus === 'name') {
+      const n = li.querySelector('.frag-name');
+      n.focus();
+      n.select();
+    } else if (focus) {
+      const ta = li.querySelector('.text-body');
+      ta.focus({ preventScroll: true });
+      ta.setSelectionRange(ta.value.length, ta.value.length);
+    }
+    li.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+
+  async function collapseText(id) {
+    const fr = current.fragments.find((x) => x.id === id);
+    if (fr) await saveText(fr);
+    expanded.delete(id);
+    const before = $(`.frag[data-id="${CSS.escape(id)}"]`);
+    // 只有焦點原本就在這張卡片裡時才把焦點留在原處，避免搶走其他輸入框的焦點
+    const hadFocus = !!before && before.contains(document.activeElement);
+    const li = rerenderFrag(id);
+    if (hadFocus) li?.querySelector('.text-peek')?.focus({ preventScroll: true });
+  }
+
+  let addingText = false;
+  async function addText() {
+    if (addingText) return;
+    addingText = true;
+    try { await createText(); } finally { addingText = false; }
+  }
+  async function createText() {
+    const { folder } = current;
+    const n = current.fragments.filter((f) => f.kind === 'text').length + 1;
+    const now = Date.now();
+    const fr = {
+      id: uid(), folderId: folder.id, name: `文字 ${n}`, kind: 'text', mime: 'text/plain',
+      text: '', size: 0, createdAt: now, updatedAt: now,
+    };
+    await DB.putFragment(fr);
+    await touchFolder(folder.id);
+    askPersist();
+    current.fragments.push(fr);
+    expanded.add(fr.id);
+    renderFragments();
+    expandText(fr.id, { focus: 'name' });
+    toast('先幫它取個名字，按 Enter 開始寫內容');
   }
 
   const sanitize = (s) => String(s).replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/^\.+/, '').trim() || '未命名';
@@ -418,32 +574,12 @@
     title.addEventListener('change', saveTitle);
     title.addEventListener('keydown', (e) => { if (e.key === 'Enter') title.blur(); });
 
-    // 備註（自動儲存）
-    const notes = $('#notes');
-    const state = $('#save-state');
-    let t;
-    const saveNotes = async () => {
-      clearTimeout(t);
-      if (folder.notes === notes.value) return;
-      folder.notes = notes.value;
-      folder.updatedAt = Date.now();
-      await DB.putFolder(folder);
-      state.textContent = '已儲存';
-    };
-    notes.addEventListener('input', () => {
-      state.textContent = '編輯中…';
-      clearTimeout(t);
-      t = setTimeout(saveNotes, 600);
-    });
-    notes.addEventListener('blur', saveNotes);
-    cleanup.push(() => { saveNotes(); });
-
     // 匯出 & 刪除
     $('#wav').addEventListener('change', (e) => writePref('wav', e.target.checked ? '1' : '0'));
     $('#export').addEventListener('click', (e) => exportZip(e.currentTarget));
     $('#del-folder').addEventListener('click', async () => {
       const n = current.fragments.length;
-      if (!confirm(`確定要刪除「${folder.name}」嗎？${n ? `裡面的 ${n} 個碎片和備註也會一起刪除，` : ''}這個動作無法復原。`)) return;
+      if (!confirm(`確定要刪除「${folder.name}」嗎？${n ? `裡面的 ${n} 個碎片也會一起刪除，` : ''}這個動作無法復原。`)) return;
       await DB.deleteFolder(folder.id);
       toast('已刪除資料夾');
       location.hash = '#/';
@@ -472,8 +608,9 @@
       if (files.length) await addFiles(files);
     });
 
-    // 錄音
+    // 錄音 / 文字
     $('#rec-btn').addEventListener('click', () => recorder.start());
+    $('#text-btn').addEventListener('click', addText);
 
     // 碎片列表：重新命名 / 刪除 / 放大圖片
     const list = $('#frag-list');
@@ -485,6 +622,7 @@
       if (!fr) return;
       if (!v) { e.target.value = fr.name; return; }
       fr.name = v;
+      if (fr.kind === 'text') fr.updatedAt = Date.now();
       await DB.putFragment(fr);
       await touchFolder(folder.id);
       const a = li.querySelector('a[download]');
@@ -492,16 +630,51 @@
       toast('已重新命名');
     });
     list.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && e.target.classList.contains('frag-name')) e.target.blur();
+      if (e.key === 'Enter' && e.target.classList.contains('frag-name')) {
+        e.preventDefault();
+        const ta = e.target.closest('.frag').querySelector('.text-body');
+        if (ta) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } else e.target.blur();
+        return;
+      }
+      if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('.text-peek')) {
+        e.preventDefault();
+        expandText(e.target.closest('.frag').dataset.id);
+        return;
+      }
+      if (e.key === 'Escape' && e.target.matches('.text-body')) {
+        collapseText(e.target.closest('.frag').dataset.id);
+      }
+    });
+    list.addEventListener('input', (e) => {
+      if (!e.target.matches('.text-body')) return;
+      const li = e.target.closest('.frag');
+      const fr = current.fragments.find((x) => x.id === li.dataset.id);
+      if (!fr) return;
+      fr.text = e.target.value;
+      fr.updatedAt = Date.now();
+      autosize(e.target);
+      scheduleTextSave(fr, li);
     });
     list.addEventListener('click', async (e) => {
       const zoom = e.target.closest('[data-zoom]');
       if (zoom) { openLightbox(zoom.src); return; }
+      const act = e.target.closest('[data-act]')?.dataset.act;
+      const id = e.target.closest('.frag')?.dataset.id;
+      if (act === 'expand') { expandText(id); return; }
+      if (act === 'collapse') { collapseText(id); return; }
+      if (act === 'download-text') {
+        const fr = current.fragments.find((x) => x.id === id);
+        if (fr) downloadBlob(textBlob(fr.text), fileNameFor(fr, 'txt'));
+        return;
+      }
       const del = e.target.closest('[data-act="delete"]');
       if (!del) return;
       const li = del.closest('.frag');
       const fr = current.fragments.find((x) => x.id === li.dataset.id);
       if (!fr || !confirm(`刪除「${fr.name}」？`)) return;
+      clearTimeout(textTimers.get(fr.id));
+      textTimers.delete(fr.id);
+      expanded.delete(fr.id);
       await DB.deleteFragment(fr.id);
       await touchFolder(folder.id);
       current.fragments = current.fragments.filter((x) => x.id !== fr.id);
@@ -510,7 +683,17 @@
       toast('已刪除');
     });
 
-    cleanup.push(revokeAll);
+    cleanup.push(revokeAll, flushTextSaves);
+  }
+
+  function downloadBlob(blob, name) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
   }
 
   async function addFiles(files) {
@@ -747,8 +930,9 @@
 
   async function exportZip(btn) {
     if (typeof JSZip === 'undefined') { toast('ZIP 元件載入失敗，請重新整理頁面。', 4000); return; }
-    // 先把還沒存的備註 / 名稱寫進去
+    // 先把還沒存的文字 / 名稱寫進去
     document.activeElement?.blur?.();
+    await flushTextSaves();
     const folder = await DB.folder(current.folder.id);
     const fragments = await DB.fragments(folder.id);
     const wav = $('#wav')?.checked;
@@ -770,10 +954,12 @@
         used.add(n.toLowerCase());
         return n;
       };
-      used.add('備註.txt');
-
       let converted = 0;
       for (const fr of fragments) {
+        if (fr.kind === 'text') {
+          root.file(unique(fileNameFor(fr, 'txt')), textBlob(fr.text), { date: new Date(fr.updatedAt || fr.createdAt) });
+          continue;
+        }
         let blob = fr.blob;
         let ext = extOf(fr);
         if (wav && fr.recorded && ext !== 'wav') {
@@ -788,28 +974,11 @@
         root.file(unique(fileNameFor(fr, ext)), blob, { date: new Date(fr.createdAt) });
       }
 
-      const list = fragments.map((fr, i) => `${i + 1}. ${fr.name}（${KIND_LABEL[fr.kind] || '檔案'}${fr.duration ? '，' + fmtDur(fr.duration) : ''}，${new Date(fr.createdAt).toLocaleString('zh-TW')}）`).join('\n');
-      const noteText = [
-        `# ${folder.name}`,
-        `匯出時間：${new Date().toLocaleString('zh-TW')}`,
-        '',
-        '## 備註',
-        folder.notes || '（無）',
-        '',
-        `## 靈感碎片（${fragments.length}）`,
-        list || '（無）',
-        '',
-      ].join('\n');
-      root.file('備註.txt', '\ufeff' + noteText.replace(/\n/g, '\r\n'));
+      // 舊版資料夾備註（尚未搬移的）也一起帶走
+      if (folder.notes && folder.notes.trim()) root.file(unique('備註.txt'), textBlob(folder.notes));
 
       const out = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(out);
-      a.download = `${sanitize(folder.name)}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
+      downloadBlob(out, `${sanitize(folder.name)}.zip`);
       toast(`已匯出 ${fragments.length} 個碎片${converted ? `（${converted} 段錄音轉為 WAV）` : ''}`);
     } catch (err) {
       console.error(err);
@@ -829,6 +998,10 @@
   }
 
   // ---------------------------------------------------------------- boot
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushTextSaves();
+  });
+  window.addEventListener('pagehide', () => { flushTextSaves(); });
   window.addEventListener('beforeunload', (e) => {
     if (recorder.active) { e.preventDefault(); e.returnValue = ''; }
   });
