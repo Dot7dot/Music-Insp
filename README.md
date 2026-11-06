@@ -34,6 +34,6 @@ python3 -m http.server 8000
 
 ## 部署
 
-推送到 `main` 后，`.github/workflows/pages.yml` 会自动部署到 GitHub Pages。
+推送到 `main` 后，`.github/workflows/pages.yml` 会把网页档案发布到 `gh-pages` 分支，GitHub Pages 再从该分支自动更新网站。
 
 第三方元件：[JSZip](https://stuk.github.io/jszip/) 3.10.1（MIT，放在 `vendor/`）。
