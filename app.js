@@ -1,5 +1,5 @@
-/* Music Insp — 灵感碎片收集簿
- * 纯前端：资料全部存在浏览器的 IndexedDB 里。
+/* Music Insp — 靈感碎片收集簿
+ * 純前端：資料全部存在瀏覽器的 IndexedDB 裡。
  */
 (() => {
   'use strict';
@@ -132,7 +132,7 @@
       return txDone(t);
     },
     async stats() {
-      // 每个资料夹的碎片数量与种类（不读取 blob 内容）
+      // 每個資料夾的碎片數量與種類（不讀取 blob 內容）
       const db = await openDB();
       const t = db.transaction('fragments');
       const out = {};
@@ -201,7 +201,7 @@
 
   const stripExt = (n) => n.replace(/\.[a-z0-9]{1,8}$/i, '');
 
-  const KIND_LABEL = { audio: '音讯', image: '图片', video: '影片', file: '档案' };
+  const KIND_LABEL = { audio: '音訊', image: '圖片', video: '影片', file: '檔案' };
 
   // ---------------------------------------------------------------- router
   let cleanup = [];
@@ -212,7 +212,7 @@
 
   async function route() {
     if (recorder.active) {
-      // 离开页面前先把录音存起来
+      // 離開頁面前先把錄音存起來
       await recorder.stop();
     }
     runCleanup();
@@ -222,7 +222,7 @@
       else await renderHome();
     } catch (err) {
       console.error(err);
-      app.innerHTML = `<div class="empty"><strong>发生错误</strong>${esc(err.message || err)}</div>`;
+      app.innerHTML = `<div class="empty"><strong>發生錯誤</strong>${esc(err.message || err)}</div>`;
     }
     updateStorageInfo();
   }
@@ -242,9 +242,9 @@
           <span class="folder-icon">${ICONS.folder}</span>
           <h3>${esc(f.name)}</h3>
           <div class="meta">
-            <span>${s.count} 个碎片</span>
+            <span>${s.count} 個碎片</span>
             <span>${fmtSize(s.size)}</span>
-            <span>更新于 ${fmtDate(f.updatedAt)}</span>
+            <span>更新於 ${fmtDate(f.updatedAt)}</span>
           </div>
           ${chips ? `<div class="chips">${chips}</div>` : ''}
         </a>`;
@@ -253,17 +253,17 @@
     app.innerHTML = `
       <section class="hero">
         <h1>我的歌曲</h1>
-        <p>每首歌一个资料夹，把录音、图片、档案这些灵感碎片先丢进来，之后一键汇出 ZIP 带进编曲软体。</p>
+        <p>每首歌一個資料夾，把錄音、圖片、檔案這些靈感碎片先丟進來，之後一鍵匯出 ZIP 帶進編曲軟體。</p>
       </section>
       <form class="new-song" id="new-song" autocomplete="off">
-        <label class="sr-only" for="song-name">歌曲名称</label>
-        <input id="song-name" name="name" placeholder="新歌曲名称，例如：夏夜的海" maxlength="80" required>
+        <label class="sr-only" for="song-name">歌曲名稱</label>
+        <input id="song-name" name="name" placeholder="新歌曲名稱，例如：夏夜的海" maxlength="80" required>
         <button class="btn btn-primary" type="submit">${ICONS.plus}新增歌曲</button>
       </form>
       ${folders.length ? `<div class="folder-grid">${cards}</div>` : `
         <div class="empty">
-          <strong>还没有任何歌曲资料夹</strong>
-          在上方输入歌曲名称，建立第一个灵感资料夹吧。
+          <strong>還沒有任何歌曲資料夾</strong>
+          在上方輸入歌曲名稱，建立第一個靈感資料夾吧。
         </div>`}
     `;
 
@@ -286,7 +286,7 @@
     const folder = await DB.folder(id);
     if (!folder) {
       app.innerHTML = `<a class="back" href="#/">← 所有歌曲</a>
-        <div class="empty" style="margin-top:16px"><strong>找不到这个资料夹</strong>它可能已经被删除了。</div>`;
+        <div class="empty" style="margin-top:16px"><strong>找不到這個資料夾</strong>它可能已經被刪除了。</div>`;
       return;
     }
     const fragments = await DB.fragments(id);
@@ -299,36 +299,36 @@
       <a class="back" href="#/">← 所有歌曲</a>
       <div class="folder-head">
         <div class="title-wrap">
-          <label class="sr-only" for="title">歌曲名称</label>
+          <label class="sr-only" for="title">歌曲名稱</label>
           <input id="title" class="title-input" value="${esc(folder.name)}" maxlength="80">
         </div>
         <div class="head-actions">
-          <label class="wav-toggle" title="把浏览器录下的音讯（webm / m4a）在汇出时转成 WAV，编曲软体比较好读">
-            <input type="checkbox" id="wav" ${wavPref ? 'checked' : ''}> 录音转 WAV
+          <label class="wav-toggle" title="把瀏覽器錄下的音訊（webm / m4a）在匯出時轉成 WAV，編曲軟體比較好讀">
+            <input type="checkbox" id="wav" ${wavPref ? 'checked' : ''}> 錄音轉 WAV
           </label>
-          <button class="btn btn-primary" id="export">${ICONS.zip}汇出 ZIP</button>
-          <button class="btn btn-danger btn-icon" id="del-folder" title="删除资料夹" aria-label="删除资料夹">${ICONS.trash}</button>
+          <button class="btn btn-primary" id="export">${ICONS.zip}匯出 ZIP</button>
+          <button class="btn btn-danger btn-icon" id="del-folder" title="刪除資料夾" aria-label="刪除資料夾">${ICONS.trash}</button>
         </div>
       </div>
 
       <div class="layout">
         <section class="panel">
-          <h2>灵感碎片 <span class="count" id="frag-count"></span></h2>
+          <h2>靈感碎片 <span class="count" id="frag-count"></span></h2>
           <div class="add-bar">
-            <button class="btn btn-rec" id="rec-btn">${ICONS.mic}录音</button>
-            <button class="btn" id="upload-btn">${ICONS.upload}上传档案</button>
+            <button class="btn btn-rec" id="rec-btn">${ICONS.mic}錄音</button>
+            <button class="btn" id="upload-btn">${ICONS.upload}上傳檔案</button>
             <input type="file" id="file-input" multiple hidden>
           </div>
           <div id="recorder-slot"></div>
-          <div class="dropzone" id="dropzone">也可以把档案直接拖曳到这里（录音、图片、PDF、任何档案都行）</div>
+          <div class="dropzone" id="dropzone">也可以把檔案直接拖曳到這裡（錄音、圖片、PDF、任何檔案都行）</div>
           <ul class="frag-list" id="frag-list"></ul>
         </section>
 
         <section class="panel sticky">
-          <h2>备注 <span class="save-state" id="save-state"></span></h2>
-          <label class="sr-only" for="notes">备注</label>
-          <textarea id="notes" class="notes" placeholder="歌词、和弦进行、编曲想法、BPM、调性……想到什么就记下来。">${esc(folder.notes || '')}</textarea>
-          <p class="notes-hint">自动储存。汇出 ZIP 时会一起打包成「备注.txt」。</p>
+          <h2>備註 <span class="save-state" id="save-state"></span></h2>
+          <label class="sr-only" for="notes">備註</label>
+          <textarea id="notes" class="notes" placeholder="歌詞、和弦進行、編曲想法、BPM、調性……想到什麼就記下來。">${esc(folder.notes || '')}</textarea>
+          <p class="notes-hint">自動儲存。匯出 ZIP 時會一起打包成「備註.txt」。</p>
         </section>
       </div>
     `;
@@ -352,17 +352,17 @@
     revokeAll();
     const list = $('#frag-list');
     const { fragments } = current;
-    $('#frag-count').textContent = fragments.length ? `${fragments.length} 个` : '';
+    $('#frag-count').textContent = fragments.length ? `${fragments.length} 個` : '';
 
     if (!fragments.length) {
-      list.innerHTML = `<li class="empty">还没有碎片。按「录音」马上录一段，或上传档案。</li>`;
+      list.innerHTML = `<li class="empty">還沒有碎片。按「錄音」馬上錄一段，或上傳檔案。</li>`;
       return;
     }
 
     list.innerHTML = fragments.map((fr) => {
       const url = objURL(fr.blob);
       const meta = [
-        KIND_LABEL[fr.kind] || '档案',
+        KIND_LABEL[fr.kind] || '檔案',
         extOf(fr).toUpperCase(),
         fmtSize(fr.size),
         fr.duration ? fmtDur(fr.duration) : '',
@@ -383,10 +383,10 @@
       return `
         <li class="frag" data-id="${esc(fr.id)}">
           <span class="frag-icon">${icon}</span>
-          <input class="frag-name" value="${esc(fr.name)}" maxlength="120" aria-label="碎片名称">
+          <input class="frag-name" value="${esc(fr.name)}" maxlength="120" aria-label="碎片名稱">
           <div class="frag-actions">
-            <a class="btn btn-ghost btn-icon" href="${url}" download="${esc(fileNameFor(fr))}" title="下载" aria-label="下载">${ICONS.download}</a>
-            <button class="btn btn-ghost btn-icon btn-danger" data-act="delete" title="删除" aria-label="删除">${ICONS.trash}</button>
+            <a class="btn btn-ghost btn-icon" href="${url}" download="${esc(fileNameFor(fr))}" title="下載" aria-label="下載">${ICONS.download}</a>
+            <button class="btn btn-ghost btn-icon btn-danger" data-act="delete" title="刪除" aria-label="刪除">${ICONS.trash}</button>
           </div>
           <div class="frag-meta">${esc(meta)}</div>
           ${preview ? `<div class="frag-preview">${preview}</div>` : ''}
@@ -403,7 +403,7 @@
   function bindFolderEvents() {
     const { folder } = current;
 
-    // 标题
+    // 標題
     const title = $('#title');
     const saveTitle = async () => {
       const v = title.value.trim();
@@ -413,12 +413,12 @@
       folder.updatedAt = Date.now();
       await DB.putFolder(folder);
       document.title = `${folder.name} · Music Insp`;
-      toast('已更新歌曲名称');
+      toast('已更新歌曲名稱');
     };
     title.addEventListener('change', saveTitle);
     title.addEventListener('keydown', (e) => { if (e.key === 'Enter') title.blur(); });
 
-    // 备注（自动储存）
+    // 備註（自動儲存）
     const notes = $('#notes');
     const state = $('#save-state');
     let t;
@@ -428,28 +428,28 @@
       folder.notes = notes.value;
       folder.updatedAt = Date.now();
       await DB.putFolder(folder);
-      state.textContent = '已储存';
+      state.textContent = '已儲存';
     };
     notes.addEventListener('input', () => {
-      state.textContent = '编辑中…';
+      state.textContent = '編輯中…';
       clearTimeout(t);
       t = setTimeout(saveNotes, 600);
     });
     notes.addEventListener('blur', saveNotes);
     cleanup.push(() => { saveNotes(); });
 
-    // 汇出 & 删除
+    // 匯出 & 刪除
     $('#wav').addEventListener('change', (e) => writePref('wav', e.target.checked ? '1' : '0'));
     $('#export').addEventListener('click', (e) => exportZip(e.currentTarget));
     $('#del-folder').addEventListener('click', async () => {
       const n = current.fragments.length;
-      if (!confirm(`确定要删除「${folder.name}」吗？${n ? `里面的 ${n} 个碎片和备注也会一起删除，` : ''}这个动作无法复原。`)) return;
+      if (!confirm(`確定要刪除「${folder.name}」嗎？${n ? `裡面的 ${n} 個碎片和備註也會一起刪除，` : ''}這個動作無法復原。`)) return;
       await DB.deleteFolder(folder.id);
-      toast('已删除资料夹');
+      toast('已刪除資料夾');
       location.hash = '#/';
     });
 
-    // 上传
+    // 上傳
     const input = $('#file-input');
     $('#upload-btn').addEventListener('click', () => input.click());
     input.addEventListener('change', async () => {
@@ -472,10 +472,10 @@
       if (files.length) await addFiles(files);
     });
 
-    // 录音
+    // 錄音
     $('#rec-btn').addEventListener('click', () => recorder.start());
 
-    // 碎片列表：重新命名 / 删除 / 放大图片
+    // 碎片列表：重新命名 / 刪除 / 放大圖片
     const list = $('#frag-list');
     list.addEventListener('change', async (e) => {
       if (!e.target.classList.contains('frag-name')) return;
@@ -501,13 +501,13 @@
       if (!del) return;
       const li = del.closest('.frag');
       const fr = current.fragments.find((x) => x.id === li.dataset.id);
-      if (!fr || !confirm(`删除「${fr.name}」？`)) return;
+      if (!fr || !confirm(`刪除「${fr.name}」？`)) return;
       await DB.deleteFragment(fr.id);
       await touchFolder(folder.id);
       current.fragments = current.fragments.filter((x) => x.id !== fr.id);
       renderFragments();
       updateStorageInfo();
-      toast('已删除');
+      toast('已刪除');
     });
 
     cleanup.push(revokeAll);
@@ -535,14 +535,14 @@
         current.fragments.push(fr);
       } catch (err) {
         console.error(err);
-        toast(`「${file.name}」储存失败：${err.message || err}`, 4000);
+        toast(`「${file.name}」儲存失敗：${err.message || err}`, 4000);
       }
     }
     await touchFolder(folder.id);
     askPersist();
     renderFragments();
     updateStorageInfo();
-    toast(`已加入 ${files.length} 个档案`);
+    toast(`已加入 ${files.length} 個檔案`);
   }
 
   function openLightbox(src) {
@@ -562,7 +562,7 @@
     async start() {
       if (this.active) return;
       if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
-        toast('这个浏览器不支援录音，请改用上传档案。', 4000);
+        toast('這個瀏覽器不支援錄音，請改用上傳檔案。', 4000);
         return;
       }
       let stream;
@@ -572,7 +572,7 @@
         });
       } catch (err) {
         console.error(err);
-        toast('无法使用麦克风，请确认已允许麦克风权限。', 4000);
+        toast('無法使用麥克風，請確認已允許麥克風權限。', 4000);
         return;
       }
 
@@ -599,13 +599,13 @@
       const slot = $('#recorder-slot');
       if (!slot) return;
       slot.innerHTML = `
-        <div class="recorder" role="region" aria-label="录音中">
+        <div class="recorder" role="region" aria-label="錄音中">
           <span class="rec-dot" aria-hidden="true"></span>
           <span class="rec-time" id="rec-time">0:00</span>
           <span class="rec-meter" aria-hidden="true"><span id="rec-level"></span></span>
           <span class="rec-actions">
             <button class="btn btn-ghost" id="rec-cancel">取消</button>
-            <button class="btn btn-rec" id="rec-stop">${ICONS.stop}停止并储存</button>
+            <button class="btn btn-rec" id="rec-stop">${ICONS.stop}停止並儲存</button>
           </span>
         </div>`;
       $('#rec-stop').addEventListener('click', () => this.stop());
@@ -656,7 +656,7 @@
           if (btn) btn.disabled = false;
 
           if (this.cancelled || !chunks.length) {
-            if (this.cancelled) toast('已取消录音');
+            if (this.cancelled) toast('已取消錄音');
             resolve();
             return;
           }
@@ -667,7 +667,7 @@
           const fr = {
             id: uid(),
             folderId,
-            name: `录音 ${n}`,
+            name: `錄音 ${n}`,
             origName: '',
             mime,
             kind: 'audio',
@@ -685,9 +685,9 @@
             renderFragments();
             const input = $(`.frag[data-id="${CSS.escape(fr.id)}"] .frag-name`);
             if (input) { input.focus(); input.select(); }
-            toast('录音已储存，可以直接替它命名');
+            toast('錄音已儲存，可以直接替它命名');
           } else {
-            toast('录音已储存');
+            toast('錄音已儲存');
           }
           updateStorageInfo();
           resolve();
@@ -746,8 +746,8 @@
   }
 
   async function exportZip(btn) {
-    if (typeof JSZip === 'undefined') { toast('ZIP 元件载入失败，请重新整理页面。', 4000); return; }
-    // 先把还没存的备注 / 名称写进去
+    if (typeof JSZip === 'undefined') { toast('ZIP 元件載入失敗，請重新整理頁面。', 4000); return; }
+    // 先把還沒存的備註 / 名稱寫進去
     document.activeElement?.blur?.();
     const folder = await DB.folder(current.folder.id);
     const fragments = await DB.fragments(folder.id);
@@ -770,7 +770,7 @@
         used.add(n.toLowerCase());
         return n;
       };
-      used.add('备注.txt');
+      used.add('備註.txt');
 
       let converted = 0;
       for (const fr of fragments) {
@@ -782,25 +782,25 @@
             ext = 'wav';
             converted++;
           } catch (err) {
-            console.warn('WAV 转换失败，改用原始格式', err);
+            console.warn('WAV 轉換失敗，改用原始格式', err);
           }
         }
         root.file(unique(fileNameFor(fr, ext)), blob, { date: new Date(fr.createdAt) });
       }
 
-      const list = fragments.map((fr, i) => `${i + 1}. ${fr.name}（${KIND_LABEL[fr.kind] || '档案'}${fr.duration ? '，' + fmtDur(fr.duration) : ''}，${new Date(fr.createdAt).toLocaleString()}）`).join('\n');
+      const list = fragments.map((fr, i) => `${i + 1}. ${fr.name}（${KIND_LABEL[fr.kind] || '檔案'}${fr.duration ? '，' + fmtDur(fr.duration) : ''}，${new Date(fr.createdAt).toLocaleString('zh-TW')}）`).join('\n');
       const noteText = [
         `# ${folder.name}`,
-        `汇出时间：${new Date().toLocaleString()}`,
+        `匯出時間：${new Date().toLocaleString('zh-TW')}`,
         '',
-        '## 备注',
-        folder.notes || '（无）',
+        '## 備註',
+        folder.notes || '（無）',
         '',
-        `## 灵感碎片（${fragments.length}）`,
-        list || '（无）',
+        `## 靈感碎片（${fragments.length}）`,
+        list || '（無）',
         '',
       ].join('\n');
-      root.file('备注.txt', '﻿' + noteText.replace(/\n/g, '\r\n'));
+      root.file('備註.txt', '\ufeff' + noteText.replace(/\n/g, '\r\n'));
 
       const out = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
       const a = document.createElement('a');
@@ -810,10 +810,10 @@
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
-      toast(`已汇出 ${fragments.length} 个碎片${converted ? `（${converted} 段录音转为 WAV）` : ''}`);
+      toast(`已匯出 ${fragments.length} 個碎片${converted ? `（${converted} 段錄音轉為 WAV）` : ''}`);
     } catch (err) {
       console.error(err);
-      toast('汇出失败：' + (err.message || err), 4000);
+      toast('匯出失敗：' + (err.message || err), 4000);
     } finally {
       btn.disabled = false;
       btn.innerHTML = label;
@@ -834,7 +834,7 @@
   });
 
   if (!('indexedDB' in window)) {
-    app.innerHTML = '<div class="empty"><strong>这个浏览器不支援 IndexedDB</strong>无法储存资料，请改用最新版的 Chrome、Safari、Edge 或 Firefox。</div>';
+    app.innerHTML = '<div class="empty"><strong>這個瀏覽器不支援 IndexedDB</strong>無法儲存資料，請改用最新版的 Chrome、Safari、Edge 或 Firefox。</div>';
   } else {
     route();
   }
